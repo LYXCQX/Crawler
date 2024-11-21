@@ -1,7 +1,7 @@
-from utils.reply import reply
+from Crawler.utils.reply import reply
 from ..models import proxies
 from pydantic import BaseModel
-from lib.logger import logger
+from Crawler.lib.logger import logger
 from typing import List
 
 class Param(BaseModel):

@@ -1,3 +1,3 @@
-from data.driver import CommonAccount
+from Crawler.data.driver import CommonAccount
 
-accounts = CommonAccount("data/weibo/weibo.db")
+accounts = CommonAccount("../data/weibo/sql_lab/weibo.db")

@@ -1,3 +1,3 @@
-from data.driver import CommonAccount
+from Crawler.data.driver import CommonAccount
 
-accounts = CommonAccount("data/jd/jd.db")
+accounts = CommonAccount("../data/jd/sql_lab/jd.db")

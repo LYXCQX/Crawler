@@ -1,3 +1,3 @@
-from data.driver import CommonAccount
+from Crawler.data.driver import CommonAccount
 
-accounts = CommonAccount("data/bilibili/bilibili.db")
+accounts = CommonAccount("../data/bilibili/sql_lab/bilibili.db")

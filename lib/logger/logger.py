@@ -68,6 +68,10 @@ class SingletonLogger:
         caller = inspect.getframeinfo(inspect.stack()[1][0])
         self.logger.error(f"({caller.filename}:{caller.lineno}) {msg}", *args, **kwargs)
 
+    def exception(self, msg, *args, **kwargs):
+        caller = inspect.getframeinfo(inspect.stack()[1][0])
+        self.logger.exception(f"({caller.filename}:{caller.lineno}) {msg}", *args, **kwargs)
+
     def debug(self, msg, *args, **kwargs):
         caller = inspect.getframeinfo(inspect.stack()[1][0])
         self.logger.debug(f"({caller.filename}:{caller.lineno}) {msg}", *args, **kwargs)

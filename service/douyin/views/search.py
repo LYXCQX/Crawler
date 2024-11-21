@@ -1,11 +1,11 @@
-from utils.error_code import ErrorCode
-from utils.reply import reply
+from Crawler.utils.error_code import ErrorCode
+from Crawler.utils.reply import reply
 from ..models import accounts
-from lib.logger import logger
+from Crawler.lib.logger import logger
 from ..logic import request_search
 import random
 
-async def search(keyword: str, offset: int = 0, limit: int = 10):
+async def search(keyword: str, offset: int = 0, limit: int = 10)->reply:
     """
     获取视频搜索
     """

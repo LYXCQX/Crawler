@@ -1,6 +1,6 @@
-from utils.error_code import ErrorCode
-from utils.reply import reply
-from lib.logger import logger
+from Crawler.utils.error_code import ErrorCode
+from Crawler.utils.reply import reply
+from Crawler.lib.logger import logger
 from ..logic import request_detail
 
 # route

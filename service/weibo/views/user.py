@@ -1,7 +1,7 @@
-from utils.error_code import ErrorCode
-from utils.reply import reply
+from Crawler.utils.error_code import ErrorCode
+from Crawler.utils.reply import reply
 from ..models import accounts
-from lib.logger import logger
+from Crawler.lib.logger import logger
 from ..logic import request_user
 import random
 

@@ -1,7 +1,7 @@
 import re
 from .common import SEARCH_URL, COMMON_HEADERS
-from lib import requests
-from lib.logger import logger
+from Crawler.lib import requests
+from Crawler.lib.logger import logger
 from urllib.parse import quote
 from bs4 import BeautifulSoup
 from asyncio import gather

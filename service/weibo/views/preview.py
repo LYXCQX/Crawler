@@ -1,7 +1,7 @@
 from fastapi import Request
 from fastapi.responses import StreamingResponse
-from utils.error_code import ErrorCode
-from utils.reply import reply
+from Crawler.utils.error_code import ErrorCode
+from Crawler.utils.reply import reply
 import httpx
 
 async def preview(request: Request):

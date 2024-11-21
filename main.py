@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from importlib import import_module
-from lib.logger import logger
+from Crawler.lib.logger import logger
 import uvicorn
 import yaml
 import argparse

@@ -1,6 +1,6 @@
 from enum import Enum
-from lib.logger import logger
-from lib import requests
+from Crawler.lib.logger import logger
+from Crawler.lib import requests
 
 HOST = 'https://www.kuaishou.com'
 
@@ -23,7 +23,7 @@ COMMON_HEADERS = {
     "sec-ch-ua-platform": '"macOS"'
 }
 
-GRAPHQL_DIR = 'service/kuaishou/logic/graphql/'
+GRAPHQL_DIR = '../Crawler/service/kuaishou/logic/graphql/'
 
 
 class GraphqlQuery(Enum):

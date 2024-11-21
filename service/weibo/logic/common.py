@@ -1,5 +1,5 @@
-from lib.logger import logger
-from lib import requests
+from Crawler.lib.logger import logger
+from Crawler.lib import requests
 
 HOST = 'https://weibo.com'
 MOBILE_HOST = 'https://m.weibo.cn'

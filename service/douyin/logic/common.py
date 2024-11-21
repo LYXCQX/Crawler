@@ -1,6 +1,6 @@
-from lib.logger import logger
+from Crawler.lib.logger import logger
 import execjs
-from lib import requests
+from Crawler.lib import requests
 import urllib.parse
 import re
 import random
@@ -57,7 +57,7 @@ COMMON_HEADERS ={
     "dnt": "1",
 }
 
-DOUYIN_SIGN = execjs.compile(open('lib/js/douyin.js', encoding='utf-8').read())
+DOUYIN_SIGN = execjs.compile(open('../Crawler/lib/js/douyin.js', encoding='utf-8').read())
 
 async def get_webid(headers: dict):
     url = 'https://www.douyin.com/?recommend=1'

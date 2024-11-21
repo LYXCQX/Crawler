@@ -1,7 +1,7 @@
 from .common import common_request, WEB_HOST
 from bs4 import BeautifulSoup
-from lib import requests
-from lib.logger import logger
+from Crawler.lib import requests
+from Crawler.lib.logger import logger
 import re
 import json
 import asyncio

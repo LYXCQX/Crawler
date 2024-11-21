@@ -1,7 +1,7 @@
 import time
 import hashlib
 from urllib.parse import quote
-from lib.logger import logger
+from Crawler.lib.logger import logger
 
 HOST = 'https://h5api.m.taobao.com'
 

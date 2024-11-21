@@ -1,6 +1,6 @@
 from typing import Optional
-from lib.logger import logger
-from lib import requests
+from Crawler.lib.logger import logger
+from Crawler.lib import requests
 import execjs
 import json
 
@@ -27,7 +27,7 @@ COMMON_HEADERS = headers = {
 }
 
 # 在程序启动时编译 JavaScript 代码
-with open('lib/js/xhs.js', encoding='utf-8') as f:
+with open('../Crawler/lib/js/xhs.js', encoding='utf-8') as f:
     xhs_sign_obj = execjs.compile(f.read())
 
 

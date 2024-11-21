@@ -1,7 +1,7 @@
-from utils.error_code import ErrorCode
-from utils.reply import reply
+from Crawler.utils.error_code import ErrorCode
+from Crawler.utils.reply import reply
 from ..models import accounts
-from lib.logger import logger
+from Crawler.lib.logger import logger
 from pydantic import BaseModel
 
 class Param(BaseModel):

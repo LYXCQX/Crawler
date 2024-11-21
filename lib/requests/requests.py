@@ -1,9 +1,10 @@
 import httpx
 import json
 import time
-from data.driver import Proxies
-            
-proxyModel = Proxies("data/proxies/proxies.db")
+
+from Crawler.data.driver import Proxies
+
+proxyModel = Proxies("../Crawler/data/proxies/proxies.db")
 proxies = []
 
 class Response:
@@ -37,13 +38,13 @@ async def get_proxy():
 @retry_request
 async def get(url, headers=None, params=None) -> Response:
     proxy = await get_proxy()
-    async with httpx.AsyncClient(proxy=proxy) as client:
+    async with httpx.AsyncClient(proxies=proxy) as client:
         response = await client.get(url, headers=headers, params=params)
         return Response(response.status_code, response.text)
 
 @retry_request
 async def post(url, headers=None, data=None, json=None) -> Response:
     proxy = await get_proxy()
-    async with httpx.AsyncClient(proxy=proxy) as client:
+    async with httpx.AsyncClient(proxies=proxy) as client:
         response = await client.post(url, headers=headers, json=json, data=data)
         return Response(response.status_code, response.text)

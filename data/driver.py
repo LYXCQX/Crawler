@@ -1,5 +1,6 @@
+import traceback
 from contextlib import asynccontextmanager, closing
-from lib.logger import logger
+from Crawler.lib.logger import logger
 import time
 import sqlite3
 import aiosqlite
@@ -29,11 +30,16 @@ class CommonAccount(SqliteStore):
     def _create_table(self):
         with closing(self._get_sync_connection()) as conn, closing(conn.cursor()) as cursor:
             try:
+                # 确保 id 字段是自增主键
                 sql = f'''
                 CREATE TABLE IF NOT EXISTS {self.table_name} (
-                    {self.primary_key} VARCHAR(2048) PRIMARY KEY NOT NULL,
+                    {self.primary_key} INTEGER PRIMARY KEY AUTOINCREMENT,
                     cookie VARCHAR(2048) NOT NULL,
-                    expired INTEGER NOT NULL,
+                    expired INTEGER DEFAULT 0,
+                    creator_id VARCHAR(50) DEFAULT NULL,
+                    shop_user_id VARCHAR(50) DEFAULT NULL,
+                    pub_count INTEGER DEFAULT 100,
+                    keywords text DEFAULT '玩具,女孩玩具,男孩玩具,玩具枪,学习玩具,儿童车,布娃娃,益智,水枪,乐高,毛绒玩具,公仔,玩具车,魔方,医生玩具,积木,发条玩具,积木桌',
                     ct INTEGER NOT NULL,
                     ut INTEGER NOT NULL
                 )
@@ -43,20 +49,67 @@ class CommonAccount(SqliteStore):
             except Exception as e:
                 logger.error(f'failed to create table, error: {e}')
 
-    async def save(self, id: str, cookie: str, expired: int) -> bool:
+    async def save(self,  cookie: str, expired: int, creator_id: str = None, shop_user_id: str = None, pub_count: str = None, keywords: str = None) -> bool:
         ct = ut = int(time.time())
         async with self._get_connection() as conn:
             try:
-                sql = f'UPDATE {self.table_name} SET cookie = ?, expired = ?, ut = ? WHERE id = ?'
-                await conn.execute(sql, (cookie, expired, ut, id))
+                if creator_id or shop_user_id:
+                    update_fields = ['cookie = ?', 'expired = ?', 'ut = ?']
+                    params = [cookie, expired, ut]
+
+                    if creator_id is not None:
+                        update_fields.append('creator_id = ?')
+                        params.append(creator_id)
+                    if shop_user_id is not None:
+                        update_fields.append('shop_user_id = ?')
+                        params.append(shop_user_id)
+                    if pub_count is not None:
+                        update_fields.append('pub_count = ?')
+                        params.append(pub_count)
+                    if keywords is not None:
+                        update_fields.append('keywords = ?')
+                        params.append(keywords)
+
+                    update_sql = f'UPDATE {self.table_name} SET {", ".join(update_fields)} WHERE 1=1'
+                    if creator_id is not None:
+                        update_sql += ' and creator_id = ?'
+                        params.append(creator_id)
+                    if shop_user_id is not None:
+                        update_sql += ' and shop_user_id = ?'
+                        params.append(shop_user_id)
+                    await conn.execute(update_sql, params)
+                
                 if conn.total_changes == 0:
-                    sql = f'INSERT INTO {self.table_name} (cookie, expired, ct, ut, id) VALUES (?, ?, ?, ?, ?)'
-                    await conn.execute(sql, (cookie, expired, ct, ut, id))
+                    insert_fields = ['cookie', 'expired', 'ct', 'ut']
+                    insert_values = ['?'] * 4
+                    insert_params = [cookie, expired, ct, ut]
+                    
+                    if creator_id is not None:
+                        insert_fields.append('creator_id')
+                        insert_values.append('?')
+                        insert_params.append(creator_id)
+                    if shop_user_id is not None:
+                        insert_fields.append('shop_user_id')
+                        insert_values.append('?')
+                        insert_params.append(shop_user_id)
+                    if pub_count is not None:
+                        insert_fields.append('pub_count')
+                        insert_values.append('?')
+                        insert_params.append(pub_count)
+                    if keywords is not None:
+                        insert_fields.append('keywords')
+                        insert_values.append('?')
+                        insert_params.append(keywords)
+                    
+                    insert_sql = f'INSERT INTO {self.table_name} ({", ".join(insert_fields)}) VALUES ({", ".join(insert_values)})'
+                    await conn.execute(insert_sql, insert_params)
+                
                 await conn.commit()
                 return True
             except Exception as e:
                 logger.error(f'failed to save cookies, error: {e}')
                 await conn.rollback()
+                traceback.print_exc()
                 return False
 
     async def load(self, offset: int = 0, limit: int = 0) -> list:

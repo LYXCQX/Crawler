@@ -1,6 +1,6 @@
-from lib.logger import logger
+from Crawler.lib.logger import logger
 from bs4 import BeautifulSoup
-from lib import requests
+from Crawler.lib import requests
 import urllib.parse
 import time
 import hashlib

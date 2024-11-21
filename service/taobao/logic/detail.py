@@ -1,6 +1,6 @@
 from .common import COMMON_HEADERS, APPKEY, HOST, get_token, sign
-from lib.logger import logger
-from lib import requests
+from Crawler.lib.logger import logger
+from Crawler.lib import requests
 from urllib.parse import quote
 import time
 
