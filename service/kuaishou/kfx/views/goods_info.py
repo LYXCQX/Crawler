@@ -231,16 +231,14 @@ async def dwn_video(video_dir, goods, account):
 
     if len(downloaded_videos) < video_count:
         logger.warning(f'未能获取足够数量的视频，当前已下载: {len(downloaded_videos)}个，目标数量: {video_count}个')
+        raise Exception(f'未能获取足够数量的视频，当前已下载: {len(downloaded_videos)}个，目标数量: {video_count}个')
     else:
         logger.info(f'成功获取足够数量的视频，共{len(downloaded_videos)}个')
         rotated_video_path = concat_videos(video_dir)
         logger.info(f'带货视频已合并到{rotated_video_path}')
-        try:
-            if rotated_video_path:
-                up_sta, up_count = up_video(rotated_video_path, SOCIAL_MEDIA_KUAISHOU, account)
-                logger.info(f"上传视频完毕:  - 状态: {up_sta}-视频路径：{rotated_video_path}")
-        except Exception as e:
-            logger.exception(f"上传视频时出错:  - 平台: {SOCIAL_MEDIA_KUAISHOU}-视频路径：{rotated_video_path} - 错误信息: {str(e)}")
+        if rotated_video_path:
+            up_sta, up_count = up_video(rotated_video_path, SOCIAL_MEDIA_KUAISHOU, account)
+            logger.info(f"上传视频完毕:  - 状态: {up_sta}-视频路径：{rotated_video_path}")
     return downloaded_videos
 
 
