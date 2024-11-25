@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager, closing
 import time
 import sqlite3
 import aiosqlite
+from datetime import datetime
+import pytz
 
 from MediaCrawler.tools.utils import logger
 
@@ -9,15 +11,31 @@ from MediaCrawler.tools.utils import logger
 class SqliteStore:
     def __init__(self, db_path):
         self.db_path = db_path
+        self.local_tz = pytz.timezone('Asia/Shanghai')  # 设置为中国时区
 
     @asynccontextmanager
     async def _get_connection(self):
-        async with aiosqlite.connect(self.db_path) as conn:
+        async with aiosqlite.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
+            # 设置时区
+            await conn.execute("PRAGMA timezone='+08:00'")
+            # 设置时间戳转换函数
+            await conn.create_function(
+                "datetime", 
+                -1,  
+                lambda *args: datetime.now(self.local_tz).strftime('%Y-%m-%d %H:%M:%S') if not args else args[0]
+            )
             conn.row_factory = aiosqlite.Row
             yield conn
 
     def _get_sync_connection(self):
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES)
+        conn.execute("PRAGMA timezone='+08:00'")
+        # 设置时间戳转换函数
+        conn.create_function(
+            "datetime",
+            -1,
+            lambda *args: datetime.now(self.local_tz).strftime('%Y-%m-%d %H:%M:%S') if not args else args[0]
+        )
         conn.row_factory = sqlite3.Row
         return conn
 
@@ -119,19 +137,20 @@ class GoodsInfoStore(SqliteStore):
                     categoryName TEXT,
                     salesVolumeDesc TEXT,
                     keywords TEXT,
-                    ct DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+                    ct DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
                     ut DATETIME
                 )
                 '''
                 cursor.execute(sql)
                 
-                # 创建更新触发器
+                # 修改更新触发器
                 trigger_sql = f'''
                 CREATE TRIGGER IF NOT EXISTS update_goods_timestamp 
                 AFTER UPDATE ON {self.table_name}
                 FOR EACH ROW
                 BEGIN
-                    UPDATE {self.table_name} SET ut = CURRENT_TIMESTAMP
+                    UPDATE {self.table_name} 
+                    SET ut = datetime('now', 'localtime')
                     WHERE {self.primary_key} = NEW.{self.primary_key} AND 
                     (
                         NEW.status != OLD.status OR 
@@ -155,6 +174,10 @@ class GoodsInfoStore(SqliteStore):
                 if 'id' in goods_data:
                     del goods_data['id']
                 
+                # 添加当前时间戳
+                if 'ct' not in goods_data:
+                    goods_data['ct'] = datetime.now(self.local_tz).strftime('%Y-%m-%d %H:%M:%S')
+                
                 columns = ', '.join(goods_data.keys())
                 placeholders = ', '.join(['?' for _ in goods_data])
                 sql = f'INSERT OR REPLACE INTO {self.table_name} ({columns}) VALUES ({placeholders})'
@@ -172,6 +195,10 @@ class GoodsInfoStore(SqliteStore):
                 for goods in goods_list:
                     if 'id' in goods:
                         del goods['id']
+                    
+                    # 添加当前时间戳
+                    if 'ct' not in goods:
+                        goods['ct'] = datetime.now(self.local_tz).strftime('%Y-%m-%d %H:%M:%S')
                     
                     columns = ', '.join(goods.keys())
                     placeholders = ', '.join(['?' for _ in goods])
@@ -202,11 +229,11 @@ class GoodsInfoStore(SqliteStore):
                     sql = f'''
                         SELECT *  FROM {self.table_name} 
                         WHERE lUserId = ? 
-                        AND date(ct) >= date(?)
+                        AND date(ct) >= date(?) order by ct desc
                     '''
                     cursor = await conn.execute(sql, (lUserId, date))
                 else:
-                    sql = f'SELECT * FROM {self.table_name} WHERE lUserId = ?'
+                    sql = f'SELECT * FROM {self.table_name} WHERE lUserId = ? order by ct desc'
                     cursor = await conn.execute(sql, (lUserId,))
                 
                 results = await cursor.fetchall()
@@ -294,54 +321,50 @@ class GoodsInfoStore(SqliteStore):
                 return []
 
     async def get_keywords_statistics(self, date: str = None, lUserId: str = None) -> dict:
-        """
-        统计商品标题和关键词中的词频
-        Args:
-            date: 指定日期，格式为'YYYY-MM-DD'，默认为None表示所有日期
-            lUserId: 用户ID，默认为None表示所有用户
-        Returns:
-            dict: 关键词统计结果，格式为 {keyword: count}
-        """
+        # 统计关键词中的词频
+        # Args:
+        #     date: 指定日期，格式为'YYYY-MM-DD'，默认为None表示所有日期
+        #     lUserId: 用户ID，默认为None表示所有用户
+        # Returns:
+        #     dict: 关键词统计结果，格式为 {keyword: count}
+        # 构建基础SQL查询
         async with self._get_connection() as conn:
             try:
-                # 构建查询条件
-                conditions = []
-                params = []
-                
-                if date:
-                    conditions.append("date(ct) = date(?)")
-                    params.append(date)
-                
-                if lUserId:
-                    conditions.append("lUserId = ?")
-                    params.append(lUserId)
-                
-                where_clause = f"WHERE word != '' {' AND ' + ' AND '.join(conditions) if conditions else ''}"
-                
+
                 sql = f'''
-                WITH split_keywords AS (
-                    SELECT word
-                    FROM {self.table_name},
-                         json_each(
-                             '["' || replace(
-                                 replace(
-                                     coalesce(keywords, '') || ' ' || coalesce(item_title, ''),
-                                     ' ', '","'
-                                 ),
-                                 '，', '","'
-                             ) || '"]'
-                         ) AS words(word)
-                    {where_clause}
-                )
-                SELECT word as keyword, COUNT(*) as count 
-                FROM split_keywords 
-                GROUP BY word 
-                ORDER BY count DESC
+                    SELECT 
+                        keywords,
+                        COUNT(1) as search_count
+                    FROM {self.table_name}
+                    WHERE 1=1
                 '''
-                
+                params = []
+
+                # 添加日期筛选条件
+                if date:
+                    sql += " AND DATE(ct) = ?"
+                    params.append(date)
+
+                # 添加用户ID筛选条件
+                if lUserId:
+                    sql += " AND lUserId = ?"
+                    params.append(lUserId)
+
+                # 添加分组和排序
+                sql += """
+                    GROUP BY keywords
+                    ORDER BY search_count DESC
+                """
+                # 执行查询
                 cursor = await conn.execute(sql, params)
                 results = await cursor.fetchall()
-                return {row['keyword']: row['count'] for row in results}
+                result_map = {}
+                for row in results:
+                    result_map[row['keywords']] = row['search_count']
+
+                # 转换为字典格式返回
+                return result_map
             except Exception as e:
-                logger.error(f'统计关键词失败, error: {e}')
-                return {}
+                logger.error(f'统计关键词中的词频信息失败, error: {e}')
+                return []
+

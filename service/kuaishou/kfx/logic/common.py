@@ -63,16 +63,20 @@ async def common_request(data: dict, headers: dict, url: str) -> tuple[dict, boo
     :param headers: 请求头
     :return: 返回数据和是否成功
     """
-    headers.update(COMMON_HEADERS)
-    logger.info(
-        f'url: {url}, request {url}, body={data}, headers={headers}')
-    response = await requests.post(url, headers, json=data)
-    logger.info(
-        f'url: {url}, body: {data}, response, code: {response.status_code}, body: {response.text}')
+    try:
+        headers.update(COMMON_HEADERS)
+        logger.info(
+            f'url: {url}, request {url}, body={data}, headers={headers}')
+        response = await requests.post(url, headers, json=data)
+        logger.info(
+            f'url: {url}, body: {data}, response, code: {response.status_code}, body: {response.text}')
 
-    if response.status_code != 200 or response.text == '':
-        logger.error(
-            f'url: {url}, body: {data}, request error, code: {response.status_code}, body: {response.text}')
+        if response.status_code != 200 or response.text == '':
+            logger.error(
+                f'url: {url}, body: {data}, request error, code: {response.status_code}, body: {response.text}')
+            return {}, False
+    except Exception as e:
+        logger.exception(f'url: {url}, body: {data}, request error', e)
         return {}, False
 
     return response.json(), True
