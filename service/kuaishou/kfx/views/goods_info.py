@@ -80,6 +80,7 @@ async def get_goods_info(
                 else:
                     req.pcursor = res.pcursor
                     empty_count = 0
+                    latest_publish_time = today_items[0].get('ct',None)
                     for goods in res.data:
                         try:
                             # 校验数据是否符合
@@ -107,20 +108,17 @@ async def get_goods_info(
                                 output_path = os.path.join(video_dir, 'download_final.mp4')
                                 await dwn_video(video_dir, goods, account, output_path)
                                 if os.path.exists(output_path):
-                                        last_up_row = await goods_db.query_by_lUserId(account_id, date=past_date)
-                                        if last_up_row and len(last_up_row) > 0:
-                                            latest_publish_time = today_items[0].get('ct',None)
-                                            if latest_publish_time:
-                                                current_time = datetime.datetime.now()
-                                                # 将字符串格式的时间转换为datetime对象进行比较
-                                                if isinstance(latest_publish_time, str):
-                                                    latest_publish_time = datetime.datetime.strptime(latest_publish_time, '%Y-%m-%d %H:%M:%S')
-                                                time_diff = (current_time - latest_publish_time).total_seconds()
-                                                publish_interval = int(os.getenv('PUBLISH_INTERVAL', 1200))
+                                        if latest_publish_time:
+                                            current_time = datetime.datetime.now()
+                                            # 将字符串格式的时间转换为datetime对象进行比较
+                                            if isinstance(latest_publish_time, str):
+                                                latest_publish_time = datetime.datetime.strptime(latest_publish_time, '%Y-%m-%d %H:%M:%S')
+                                            time_diff = (current_time - latest_publish_time).total_seconds()
+                                            publish_interval = int(os.getenv('PUBLISH_INTERVAL', 1200))
 
-                                                if time_diff < publish_interval:
-                                                    logger.info(f'距离上次发布时间间隔{time_diff}秒，小于设定的{publish_interval}秒，跳过本次发布')
-                                                    continue
+                                            if time_diff < publish_interval:
+                                                logger.info(f'距离上次发布时间间隔{time_diff}秒，小于设定的{publish_interval}秒，跳过本次发布')
+                                                continue
 
                                         logger.info('开始发布商品信息...')
                                         up_sta, up_count = await up_video(folder=video_dir, platform=SOCIAL_MEDIA_KUAISHOU, account=account,check_job=False,goods=goods)
@@ -128,6 +126,7 @@ async def get_goods_info(
                                         # 上传完成后删除文件
                                         if up_sta and up_count > 0:
                                             shutil.rmtree(video_dir)
+                                            latest_publish_time = datetime.datetime.now()
                                             # 保存数据
                                             goods_dict = goods.model_dump()
                                             goods_dict = convert_nested_to_str(goods_dict)
