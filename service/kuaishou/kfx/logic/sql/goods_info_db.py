@@ -135,6 +135,7 @@ class GoodsInfoStore(SqliteStore):
                     activityType INTEGER,
                     categoryId INTEGER,
                     categoryName TEXT,
+                    platform VARCHAR(50) DEFAULT 'kuaishou',
                     salesVolumeDesc TEXT,
                     keywords TEXT,
                     ct DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
@@ -143,6 +144,14 @@ class GoodsInfoStore(SqliteStore):
                 '''
                 cursor.execute(sql)
                 
+                # 尝试添加platform列（如果不存在）
+                try:
+                    cursor.execute(f"ALTER TABLE {self.table_name} ADD COLUMN platform VARCHAR(50) DEFAULT 'kuaishou'")
+                    conn.commit()
+                except sqlite3.OperationalError as e:
+                    if 'duplicate column name' not in str(e).lower():
+                        logger.error(f'添加platform列失败: {e}')
+                    
                 # 修改更新触发器
                 trigger_sql = f'''
                 CREATE TRIGGER IF NOT EXISTS update_goods_timestamp 
@@ -159,7 +168,8 @@ class GoodsInfoStore(SqliteStore):
                         NEW.itemTitle != OLD.itemTitle OR
                         NEW.zkFinalPrice != OLD.zkFinalPrice OR
                         NEW.itemDisplayStatus != OLD.itemDisplayStatus OR
-                        NEW.keywords != OLD.keywords
+                        NEW.keywords != OLD.keywords OR
+                        NEW.platform != OLD.platform
                     );
                 END;
                 '''
@@ -222,19 +232,19 @@ class GoodsInfoStore(SqliteStore):
                 logger.error(f'查询商品信息失败, error: {e}')
                 return {}
 
-    async def query_by_lUserId(self, lUserId: int, date: str = None) -> list:
+    async def query_by_lUserId(self, lUserId: int, date: str = None,platform = None) -> list:
         async with self._get_connection() as conn:
             try:
                 if date:
                     sql = f'''
                         SELECT *  FROM {self.table_name} 
-                        WHERE lUserId = ? 
+                        WHERE lUserId = ? and platform = ?
                         AND date(ct) >= date(?) order by ct desc
                     '''
-                    cursor = await conn.execute(sql, (lUserId, date))
+                    cursor = await conn.execute(sql, (lUserId, date, platform))
                 else:
-                    sql = f'SELECT * FROM {self.table_name} WHERE lUserId = ? order by ct desc'
-                    cursor = await conn.execute(sql, (lUserId,))
+                    sql = f'SELECT * FROM {self.table_name} WHERE lUserId = ? and platform = ? order by ct desc'
+                    cursor = await conn.execute(sql, (lUserId, platform))
                 
                 results = await cursor.fetchall()
                 return [dict(row) for row in results]
@@ -320,7 +330,7 @@ class GoodsInfoStore(SqliteStore):
                 logger.error(f'按关键字查询商品信息失败, error: {e}')
                 return []
 
-    async def get_keywords_statistics(self, date: str = None, lUserId: str = None) -> dict:
+    async def get_keywords_statistics(self, date: str = None, lUserId: str = None,platform =None) -> dict:
         # 统计关键词中的词频
         # Args:
         #     date: 指定日期，格式为'YYYY-MM-DD'，默认为None表示所有日期
@@ -349,6 +359,11 @@ class GoodsInfoStore(SqliteStore):
                 if lUserId:
                     sql += " AND lUserId = ?"
                     params.append(lUserId)
+
+                # 添加platform筛选条件
+                if platform:
+                    sql += " AND platform = ?"
+                    params.append(platform)
 
                 # 添加分组和排序
                 sql += """

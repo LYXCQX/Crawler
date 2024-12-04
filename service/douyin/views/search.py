@@ -24,7 +24,7 @@ def get_filter_params(keyword):
     elif duration == '2':
         filter_selected["filter_duration"] = "1-5"
     elif duration == '3':
-        filter_selected["filter_duration"] = "5-10000"
+        filter_selected["filter_duration"] = "0-5"
     
     # 添加内容形式筛选
     if content_type in ['1', '2']:

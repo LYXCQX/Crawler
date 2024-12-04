@@ -38,7 +38,6 @@ class CommonAccount(SqliteStore):
                     creator_id VARCHAR(50) DEFAULT NULL,
                     shop_user_id VARCHAR(50) DEFAULT NULL,
                     pub_count INTEGER DEFAULT 100,
-                    platform VARCHAR(20) DEFAULT 'kuaishou',
                     keywords text DEFAULT '玩具,女孩玩具,男孩玩具,玩具枪,学习玩具,儿童车,布娃娃,益智,水枪,乐高,毛绒玩具,公仔,玩具车,魔方,医生玩具,积木,发条玩具,积木桌',
                     ct INTEGER NOT NULL,
                     ut INTEGER NOT NULL
@@ -49,13 +48,13 @@ class CommonAccount(SqliteStore):
             except Exception as e:
                 logger.error(f'failed to create table, error: {e}')
 
-    async def save(self,  cookie: str, expired: int, creator_id: str = None, shop_user_id: str = None, pub_count: str = None, keywords: str = None, platform: str = 'kuaishou') -> bool:
+    async def save(self,  cookie: str, expired: int, creator_id: str = None, shop_user_id: str = None, pub_count: str = None, keywords: str = None) -> bool:
         ct = ut = int(time.time())
         async with self._get_connection() as conn:
             try:
                 if creator_id or shop_user_id:
-                    update_fields = ['cookie = ?', 'expired = ?', 'ut = ?', 'platform = ?']
-                    params = [cookie, expired, ut, platform]
+                    update_fields = ['cookie = ?', 'expired = ?', 'ut = ?']
+                    params = [cookie, expired, ut]
 
                     if creator_id is not None:
                         update_fields.append('creator_id = ?')
@@ -80,9 +79,9 @@ class CommonAccount(SqliteStore):
                     await conn.execute(update_sql, params)
                 
                 if conn.total_changes == 0:
-                    insert_fields = ['cookie', 'expired', 'ct', 'ut', 'platform']
+                    insert_fields = ['cookie', 'expired', 'ct', 'ut']
                     insert_values = ['?'] * 5
-                    insert_params = [cookie, expired, ct, ut, platform]
+                    insert_params = [cookie, expired, ct, ut]
                     
                     if creator_id is not None:
                         insert_fields.append('creator_id')

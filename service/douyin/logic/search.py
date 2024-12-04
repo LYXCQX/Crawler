@@ -13,3 +13,15 @@ async def request_search(cookie: str, offset: int = 0, limit: int = 10,req_param
         return resp, succ
     ret = resp.get('data', {})
     return ret, succ
+
+
+async def request_search_goods(headers: dict,req_param=None) -> tuple[dict, bool]:
+    """
+    请求抖音获取搜索信息
+    """
+    headers.update(headers)
+    resp, succ = await common_request('https://buyin.jinritemai.com/pc/selection/common/material_list', req_param, headers)
+    if not succ:
+        return resp, succ
+    ret = resp.get('data', {})
+    return ret, succ

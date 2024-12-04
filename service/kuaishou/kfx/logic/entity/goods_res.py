@@ -134,20 +134,20 @@ class GoodsData(BaseModel):
     fsTeam: Optional[int] = None  # FS团队
     reservePrice: Optional[str] = None  # 保留价格
     commissionRate: Optional[str] = None  # 佣金率
-    sellPoint: Optional[List[Any]]  # 卖点
+    sellPoint: Optional[List[Any]] = None  # 卖点
     itemTitle: Optional[str]  # 商品标题
     profitAmount: Optional[str]  # 利润金额
-    recoReason: Optional[List[RecoReason]]  # 推荐理由列表
-    investmentActivityStatus: Optional[int]  # 投资活动状态
-    itemTagAttr: Optional[Dict[str, Any]]  # 商品标签属性
-    itemChannel: Optional[int]  # 商品渠道
+    recoReason: Optional[List[RecoReason]] = None  # 推荐理由列表
+    investmentActivityStatus: Optional[int] = None  # 投资活动状态
+    itemTagAttr: Optional[Dict[str, Any]] = None  # 商品标签属性
+    itemChannel: Optional[int] = None  # 商品渠道
     sellerName: Optional[str]  # 卖家名称
-    exposureWeightType: Optional[int]  # 曝光权重类型
-    tagText: Optional[str]  # 标签文本
+    exposureWeightType: Optional[int] = None  # 曝光权重类型
+    tagText: Optional[str] = None   # 标签文本
     zkFinalPrice: Optional[str]  # 折扣最终价格
-    coverMd5: Optional[str]  # 封面MD5
-    serverExpTag: Optional[str]  # 服务器实验标签
-    secondActivityId: Optional[int]  # 第二活动ID
+    coverMd5: Optional[str] = None  # 封面MD5
+    serverExpTag: Optional[str] = None  # 服务器实验标签
+    secondActivityId: Optional[int] = None  # 第二活动ID
     titleHeadIcon: Optional[List[str]] = None  # 标题头部图标
     itemImgUrl: Optional[str] = None  # 商品图片URL
     channelId: Optional[int] = None  # 渠道ID

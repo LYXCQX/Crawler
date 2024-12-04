@@ -18,7 +18,7 @@ class GoodsInfoHomeReq:
         self.sold_count_start = kwargs.get('sold_count_start')  # 销量开始
         self.sold_count_end = kwargs.get('sold_count_end')  # 销量结束
         self.request_type = kwargs.get('request_type')  # 请求类型
-        self.pcursor = kwargs.get('pcursor')  # 游标
+        self.pcursor = kwargs.get('pcursor') if kwargs.get('pcursor') else 0 # 游标
         self.theme_id = kwargs.get('theme_id')
         self.sub_theme_id = kwargs.get('sub_theme_id')
     def to_dict(self):
