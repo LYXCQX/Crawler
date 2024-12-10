@@ -178,7 +178,7 @@ class GoodsInfoStore(SqliteStore):
             except Exception as e:
                 logger.error(f'创建商品信息表失败, error: {e}')
 
-    async def save(self, goods_data: dict) -> bool:
+    async def save(self, goods_data: dict) -> int:
         async with self._get_connection() as conn:
             try:
                 if 'id' in goods_data:
@@ -191,13 +191,13 @@ class GoodsInfoStore(SqliteStore):
                 columns = ', '.join(goods_data.keys())
                 placeholders = ', '.join(['?' for _ in goods_data])
                 sql = f'INSERT OR REPLACE INTO {self.table_name} ({columns}) VALUES ({placeholders})'
-                await conn.execute(sql, tuple(goods_data.values()))
+                cursor = await conn.execute(sql, tuple(goods_data.values()))
                 await conn.commit()
-                return True
+                return cursor.lastrowid or 0  # 返回插入的记录ID，如果获取失败则返回0
             except Exception as e:
                 logger.error(f'保存商品信息失败, error: {e}')
                 await conn.rollback()
-                return False
+                return 0
 
     async def batch_save(self, goods_list: list) -> bool:
         async with self._get_connection() as conn:
@@ -306,11 +306,30 @@ class GoodsInfoStore(SqliteStore):
                 await conn.rollback()
                 return False
 
-    async def query_by_status(self, status: int, limit: int = 100, offset: int = 0) -> list:
+    async def query_by_status(self, lUserId: str, platform: str, status: int = 1, limit: int = 10) -> list:
+        """
+        查询指定状态的商品信息
+        
+        Args:
+            lUserId: 用户ID
+            platform: 平台
+            status: 状态值(默认为1)
+            limit: 返回记录数量限制
+            
+        Returns:
+            List[Dict]: 商品信息列表
+        """
         async with self._get_connection() as conn:
             try:
-                sql = f'SELECT * FROM {self.table_name} WHERE status = ? LIMIT ? OFFSET ?'
-                cursor = await conn.execute(sql, (status, limit, offset))
+                sql = """
+                    SELECT * FROM goods_info 
+                    WHERE lUserId = ? 
+                    AND platform = ? 
+                    AND status = ?
+                    ORDER BY ct DESC
+                    LIMIT ?
+                """
+                cursor = await conn.execute(sql, (lUserId, platform, status, limit))
                 results = await cursor.fetchall()
                 return [dict(row) for row in results]
             except Exception as e:
@@ -382,4 +401,14 @@ class GoodsInfoStore(SqliteStore):
             except Exception as e:
                 logger.error(f'统计关键词中的词频信息失败, error: {e}')
                 return []
+
+    def update_goods_status(self, goods_id: str, status: int):
+        """
+        更新商品状态
+        :param goods_id: 商品ID
+        :param status: 状态值
+        """
+        sql = "UPDATE goods_info SET status = %s WHERE goods_id = %s"
+        self.cursor.execute(sql, (status, goods_id))
+        self.conn.commit()
 
