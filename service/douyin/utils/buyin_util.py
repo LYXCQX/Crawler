@@ -82,6 +82,7 @@ async def get_goods(user_id, playwright, req: GoodsInfoHomeReq, page, browser):
                             goods_category = get_cate_by_id(env_entity, mendel_cid_list)
                         # 递归处理分类树
                         await process_category(goods_category, page, env_key)
+            await context.storage_state(path=get_account_file(user_id))
         page.on("response", handle_response)
         print('点击搜索')
         await page.click('button:has-text("搜索")')

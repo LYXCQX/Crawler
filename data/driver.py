@@ -48,14 +48,30 @@ class CommonAccount(SqliteStore):
             except Exception as e:
                 logger.error(f'failed to create table, error: {e}')
 
-    async def save(self,  cookie: str, expired: int, creator_id: str = None, shop_user_id: str = None, pub_count: str = None, keywords: str = None) -> bool:
+    async def save(self, cookie: str, expired: int, creator_id: str = None, shop_user_id: str = None, pub_count: str = None, keywords: str = None) -> bool:
         ct = ut = int(time.time())
         async with self._get_connection() as conn:
             try:
-                if creator_id or shop_user_id:
-                    update_fields = ['cookie = ?', 'expired = ?', 'ut = ?']
-                    params = [cookie, expired, ut]
+                existing_record = None
+                
+                # 先尝试通过 creator_id 查询
+                if creator_id:
+                    cursor = await conn.execute(f'SELECT * FROM {self.table_name} WHERE creator_id = ?', (creator_id,))
+                    existing_record = await cursor.fetchone()
+                
+                # 如果通过 creator_id 没找到，且提供了 shop_user_id，则尝试通过 shop_user_id 查询
+                if not existing_record and shop_user_id:
+                    cursor = await conn.execute(f'SELECT * FROM {self.table_name} WHERE shop_user_id = ?', (shop_user_id,))
+                    existing_record = await cursor.fetchone()
 
+                if existing_record:
+                    # 如果找到记录，执行更新操作
+                    update_fields = ['expired = ?', 'ut = ?']
+                    params = [expired, ut]
+
+                    if cookie is not None:
+                        update_fields.append('cookie = ?')
+                        params.append(cookie)
                     if creator_id is not None:
                         update_fields.append('creator_id = ?')
                         params.append(creator_id)
@@ -69,18 +85,13 @@ class CommonAccount(SqliteStore):
                         update_fields.append('keywords = ?')
                         params.append(keywords)
 
-                    update_sql = f'UPDATE {self.table_name} SET {", ".join(update_fields)} WHERE 1=1'
-                    if creator_id is not None:
-                        update_sql += ' and creator_id = ?'
-                        params.append(creator_id)
-                    if shop_user_id is not None:
-                        update_sql += ' and shop_user_id = ?'
-                        params.append(shop_user_id)
+                    update_sql = f'UPDATE {self.table_name} SET {", ".join(update_fields)} WHERE id = ?'
+                    params.append(existing_record['id'])
                     await conn.execute(update_sql, params)
-                
-                if conn.total_changes == 0:
+                else:
+                    # 如果没找到记录，执行插入操作
                     insert_fields = ['cookie', 'expired', 'ct', 'ut']
-                    insert_values = ['?'] * 5
+                    insert_values = ['?'] * 4
                     insert_params = [cookie, expired, ct, ut]
                     
                     if creator_id is not None:

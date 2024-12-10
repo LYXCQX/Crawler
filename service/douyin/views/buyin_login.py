@@ -80,7 +80,7 @@ async def login_with_qrcode():
             
             # 等待一会儿确保状态保存完成
             await page.wait_for_timeout(2000)
-                
+            return buyin_id
         except Exception as e:
             print(f"登录过程出错: {str(e)}")
         
