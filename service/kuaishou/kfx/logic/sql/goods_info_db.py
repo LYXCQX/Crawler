@@ -4,8 +4,10 @@ import sqlite3
 import aiosqlite
 from datetime import datetime
 import pytz
+from typing import List
 
 from MediaCrawler.tools.utils import logger
+from Crawler.service.kuaishou.kfx.logic.entity.goods_res import GoodsData  # 添加导入
 
 
 class SqliteStore:
@@ -306,7 +308,7 @@ class GoodsInfoStore(SqliteStore):
                 await conn.rollback()
                 return False
 
-    async def query_by_status(self, lUserId: str, platform: str, status: int = 1, limit: int = 10) -> list:
+    async def query_by_status(self, lUserId: str, platform: str, status: int = 1, limit: int = 10) -> List[GoodsData]:
         """
         查询指定状态的商品信息
         
@@ -317,7 +319,7 @@ class GoodsInfoStore(SqliteStore):
             limit: 返回记录数量限制
             
         Returns:
-            List[Dict]: 商品信息列表
+            List[GoodsData]: 商品信息列表
         """
         async with self._get_connection() as conn:
             try:
@@ -331,7 +333,7 @@ class GoodsInfoStore(SqliteStore):
                 """
                 cursor = await conn.execute(sql, (lUserId, platform, status, limit))
                 results = await cursor.fetchall()
-                return [dict(row) for row in results]
+                return [GoodsData(**dict(row)) for row in results]
             except Exception as e:
                 logger.error(f'按状态查询商品信息失败, error: {e}')
                 return []
