@@ -89,6 +89,7 @@ class SalesVolumeDesc(BaseModel):
 
 
 class GoodsData(BaseModel):
+    id: Optional[int] = None  # 数据库ID
     activityProfitAmount: Optional[str] = None  # 活动利润金额
     logisticsId: Optional[int] = None  # 物流ID
     itemDisplayStatus: Optional[int] = None  # 商品展示状态

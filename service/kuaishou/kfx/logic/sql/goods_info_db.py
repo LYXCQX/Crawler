@@ -22,8 +22,8 @@ class SqliteStore:
             await conn.execute("PRAGMA timezone='+08:00'")
             # 设置时间戳转换函数
             await conn.create_function(
-                "datetime", 
-                -1,  
+                "datetime",
+                -1,
                 lambda *args: datetime.now(self.local_tz).strftime('%Y-%m-%d %H:%M:%S') if not args else args[0]
             )
             conn.row_factory = aiosqlite.Row
@@ -40,6 +40,7 @@ class SqliteStore:
         )
         conn.row_factory = sqlite3.Row
         return conn
+
 
 class GoodsInfoStore(SqliteStore):
     def __init__(self, store_path):
@@ -145,7 +146,7 @@ class GoodsInfoStore(SqliteStore):
                 )
                 '''
                 cursor.execute(sql)
-                
+
                 # 尝试添加platform列（如果不存在）
                 try:
                     cursor.execute(f"ALTER TABLE {self.table_name} ADD COLUMN platform VARCHAR(50) DEFAULT 'kuaishou'")
@@ -153,7 +154,7 @@ class GoodsInfoStore(SqliteStore):
                 except sqlite3.OperationalError as e:
                     if 'duplicate column name' not in str(e).lower():
                         logger.error(f'添加platform列失败: {e}')
-                    
+                ut_now = datetime.now(self.local_tz).strftime('%Y-%m-%d %H:%M:%S')
                 # 修改更新触发器
                 trigger_sql = f'''
                 CREATE TRIGGER IF NOT EXISTS update_goods_timestamp 
@@ -161,7 +162,7 @@ class GoodsInfoStore(SqliteStore):
                 FOR EACH ROW
                 BEGIN
                     UPDATE {self.table_name} 
-                    SET ut = datetime('now', 'localtime')
+                    SET ut = {ut_now}
                     WHERE {self.primary_key} = NEW.{self.primary_key} AND 
                     (
                         NEW.status != OLD.status OR 
@@ -185,11 +186,11 @@ class GoodsInfoStore(SqliteStore):
             try:
                 if 'id' in goods_data:
                     del goods_data['id']
-                
+
                 # 添加当前时间戳
                 if 'ct' not in goods_data:
                     goods_data['ct'] = datetime.now(self.local_tz).strftime('%Y-%m-%d %H:%M:%S')
-                
+
                 columns = ', '.join(goods_data.keys())
                 placeholders = ', '.join(['?' for _ in goods_data])
                 sql = f'INSERT OR REPLACE INTO {self.table_name} ({columns}) VALUES ({placeholders})'
@@ -207,11 +208,11 @@ class GoodsInfoStore(SqliteStore):
                 for goods in goods_list:
                     if 'id' in goods:
                         del goods['id']
-                    
+
                     # 添加当前时间戳
                     if 'ct' not in goods:
                         goods['ct'] = datetime.now(self.local_tz).strftime('%Y-%m-%d %H:%M:%S')
-                    
+
                     columns = ', '.join(goods.keys())
                     placeholders = ', '.join(['?' for _ in goods])
                     sql = f'INSERT OR REPLACE INTO {self.table_name} ({columns}) VALUES ({placeholders})'
@@ -234,20 +235,20 @@ class GoodsInfoStore(SqliteStore):
                 logger.error(f'查询商品信息失败, error: {e}')
                 return {}
 
-    async def query_by_lUserId(self, lUserId: int, date: str = None,platform = None) -> list:
+    async def query_by_lUserId(self, lUserId: str, date: str = None, platform=None) -> list:
         async with self._get_connection() as conn:
             try:
                 if date:
-                    sql = f'''
-                        SELECT *  FROM {self.table_name} 
-                        WHERE lUserId = ? and platform = ?
-                        AND date(ct) >= date(?) order by ct desc
-                    '''
-                    cursor = await conn.execute(sql, (lUserId, date, platform))
+                    sql = f''' SELECT *  FROM {self.table_name} WHERE lUserId = ? and platform = ? AND date(ct) >= date(?) AND status =1 order by ct desc '''
+                    params = (lUserId, platform, date)
+                    logger.info(f"执行SQL: {sql}, 参数: {params}")
+                    cursor = await conn.execute(sql, params)
                 else:
-                    sql = f'SELECT * FROM {self.table_name} WHERE lUserId = ? and platform = ? order by ct desc'
-                    cursor = await conn.execute(sql, (lUserId, platform))
-                
+                    sql = f'SELECT * FROM {self.table_name} WHERE lUserId = ? and platform = ? AND status =1 order by ct desc'
+                    params = (lUserId, platform)
+                    logger.info(f"执行SQL: {sql}, 参数: {params}")
+                    cursor = await conn.execute(sql, params)
+
                 results = await cursor.fetchall()
                 return [dict(row) for row in results]
             except Exception as e:
@@ -277,8 +278,8 @@ class GoodsInfoStore(SqliteStore):
                 await conn.rollback()
                 return False
 
-    async def update_sales_info(self, id: int, sales_volume: int, 
-                              sale_volume_thirty_days: int) -> bool:
+    async def update_sales_info(self, id: int, sales_volume: int,
+                                sale_volume_thirty_days: int) -> bool:
         async with self._get_connection() as conn:
             try:
                 # ut会通过触发器自动更新
@@ -298,7 +299,7 @@ class GoodsInfoStore(SqliteStore):
             try:
                 # ut会通过触发器自动更新
                 sql = f'''UPDATE {self.table_name} 
-                         SET status = ?
+                         SET status = ?,ut='{datetime.now(self.local_tz).strftime('%Y-%m-%d %H:%M:%S')}'
                          WHERE id = ?'''
                 await conn.execute(sql, (status, id))
                 await conn.commit()
@@ -333,7 +334,46 @@ class GoodsInfoStore(SqliteStore):
                 """
                 cursor = await conn.execute(sql, (lUserId, platform, status, limit))
                 results = await cursor.fetchall()
-                return [GoodsData(**dict(row)) for row in results]
+                goods_list = []
+                for row in results:
+                    row_dict = dict(row)
+                    # 需要解析的JSON字段列表
+                    json_fields = ['itemTagDto', 'itemTag', 'titleTagDto', 'rankInfo', 
+                                 'sellPoint', 'recoReason', 'itemTagAttr', 'titleHeadIcon',
+                                 'itemData', 'relLive', 'relVideo', 'stepCommissionInfo',
+                                 'waistCoverShowInfo', 'ext']
+                    
+                    # 处理所有需要JSON解析的字段
+                    for field in json_fields:
+                        if isinstance(row_dict.get(field), str):
+                            try:
+                                import json
+                                row_dict[field] = json.loads(row_dict[field])
+                            except (json.JSONDecodeError, TypeError):
+                                # 如果解析失败，设置适当的默认值
+                                if field in ['itemTagDto', 'itemTag', 'titleTagDto', 
+                                           'sellPoint', 'recoReason', 'titleHeadIcon', 'itemData']:
+                                    row_dict[field] = []
+                                elif field in ['rankInfo', 'relLive', 'relVideo', 
+                                            'stepCommissionInfo', 'waistCoverShowInfo']:
+                                    row_dict[field] = {}
+                                elif field == 'itemTagAttr':
+                                    row_dict[field] = {}
+                                else:
+                                    row_dict[field] = {}
+                    
+                    try:
+                        # 删除原始的id字段，只保留db_id
+                        # db_id = row_dict.pop('id', None)
+                        # if db_id is not None:
+                        #     row_dict['db_id'] = db_id
+                            
+                        goods_list.append(GoodsData(**row_dict))
+                    except Exception as e:
+                        logger.error(f'创建GoodsData对象失败: {e}, row_dict: {row_dict}')
+                        continue
+                        
+                return goods_list
             except Exception as e:
                 logger.error(f'按状态查询商品信息失败, error: {e}')
                 return []
@@ -351,7 +391,7 @@ class GoodsInfoStore(SqliteStore):
                 logger.error(f'按关键字查询商品信息失败, error: {e}')
                 return []
 
-    async def get_keywords_statistics(self, date: str = None, lUserId: str = None,platform =None) -> dict:
+    async def get_keywords_statistics(self, date: str = None, lUserId: str = None, platform=None) -> dict:
         # 统计关键词中的词频
         # Args:
         #     date: 指定日期，格式为'YYYY-MM-DD'，默认为None表示所有日期
@@ -367,7 +407,7 @@ class GoodsInfoStore(SqliteStore):
                         keywords,
                         COUNT(1) as search_count
                     FROM {self.table_name}
-                    WHERE 1=1
+                    WHERE status =1 
                 '''
                 params = []
 
@@ -413,4 +453,3 @@ class GoodsInfoStore(SqliteStore):
         sql = "UPDATE goods_info SET status = %s WHERE goods_id = %s"
         self.cursor.execute(sql, (status, goods_id))
         self.conn.commit()
-
