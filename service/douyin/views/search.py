@@ -5,6 +5,8 @@ from Crawler.lib.logger import logger
 from ..logic import request_search
 import random
 import os
+import asyncio
+import time
 
 def get_filter_params(keyword):
     """获取搜索过滤参数"""
@@ -43,30 +45,43 @@ def get_filter_params(keyword):
         
     return params
 
+# 添加一个变量来记录上次调用时间
+_last_search_time = 0
+
 async def search(keyword: str, offset: int = 0, limit: int = 10)->reply:
     """
-    获取视频搜索
+    获取视频搜索，每次调用需间隔10秒
     """
+    global _last_search_time
+    
+    # 检查时间间隔
+    current_time = time.time()
+    time_diff = current_time - _last_search_time
+    if time_diff < 10:
+        # 如果间隔小于10秒，则等待剩余时间
+        await asyncio.sleep(10 - time_diff)
+    
     _accounts = await accounts.load()
     random.shuffle(_accounts)
     
     search_params = get_filter_params(keyword)
+    account = _accounts[0]
+    if account.get('expired', 0) == 1:
+        return reply(ErrorCode.NO_ACCOUNT, '请先添加账号')
     
-    for account in _accounts:
-        if account.get('expired', 0) == 1:
-            continue
-        account_id = account.get('id', '')
-        res, succ = await request_search(
-            account.get('cookie', ''), 
-            offset, 
-            limit,
-            search_params
-        )
-        if res == {} or not succ:
-            logger.error(f'search failed, account: {account_id}, keyword: {keyword}, offset: {offset}, limit: {limit}, res: {res}')
-            continue
-        logger.info(f'search success, account: {account_id}, keyword: {keyword}, offset: {offset}, limit: {limit}, res: {res}')
-        return reply(ErrorCode.OK, '成功', res)
+    account_id = account.get('id', '')
+    res, succ = await request_search(
+        account.get('cookie', ''), 
+        offset, 
+        limit,
+        search_params
+    )
     
-    logger.warning(f'search failed, keyword: {keyword}, offset: {offset}, limit: {limit}')
-    return reply(ErrorCode.NO_ACCOUNT, '请先添加账号')
+    # 更新最后调用时间
+    _last_search_time = time.time()
+    
+    if res == {} or not succ:
+        logger.error(f'search failed, account: {account_id}, keyword: {keyword}, offset: {offset}, limit: {limit}, res: {res}')
+        return reply(ErrorCode.SEARCH_FAILED, '搜索失败')    
+    logger.info(f'search success, account: {account_id}, keyword: {keyword}, offset: {offset}, limit: {limit}, res: {res}')
+    return reply(ErrorCode.OK, '成功', res)

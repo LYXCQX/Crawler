@@ -107,6 +107,22 @@ async def add_chat(page, title):
         xpc_class = page.get_by_text(title).locator("..").locator("..").get_by_text('加选品车')
         # 尝试点击
         await xpc_class.click()
+        
+        # 等待文本变化，检查是否成功添加
+        try:
+            # 检查是否变为"已加选品车"
+            success_text = page.get_by_text(title).locator("..").locator("..").get_by_text('已加选品车')
+            await success_text.wait_for(timeout=5000)  # 等待5秒
+            return True
+        except Exception:
+            # 检查是否出现"添加失败"
+            try:
+                fail_text = page.get_by_text("添加失败")
+                await fail_text.wait_for(timeout=1000)  # 等待1秒
+                return False
+            except Exception:
+                # 如果既没有成功也没有失败的提示，返回False
+                return False
     except Exception as e:
         print(f"定位器查找或点击过程中出现错误: {str(e)}")
         raise e

@@ -235,20 +235,27 @@ class GoodsInfoStore(SqliteStore):
                 logger.error(f'查询商品信息失败, error: {e}')
                 return {}
 
-    async def query_by_lUserId(self, lUserId: str, date: str = None, platform=None) -> list:
+    async def query_by_lUserId(self, lUserId: str, date: str = None, platform=None, status=None) -> list:
         async with self._get_connection() as conn:
             try:
-                if date:
-                    sql = f''' SELECT *  FROM {self.table_name} WHERE lUserId = ? and platform = ? AND date(ct) >= date(?) AND status =1 order by ct desc '''
-                    params = (lUserId, platform, date)
-                    logger.info(f"执行SQL: {sql}, 参数: {params}")
-                    cursor = await conn.execute(sql, params)
-                else:
-                    sql = f'SELECT * FROM {self.table_name} WHERE lUserId = ? and platform = ? AND status =1 order by ct desc'
-                    params = (lUserId, platform)
-                    logger.info(f"执行SQL: {sql}, 参数: {params}")
-                    cursor = await conn.execute(sql, params)
+                base_sql = f'SELECT * FROM {self.table_name} WHERE lUserId = ? and platform = ?'
+                params = [lUserId, platform]
 
+                if date:
+                    base_sql += ' AND date(ut) >= date(?)'
+                    params.append(date)
+                
+                if status is not None:
+                    base_sql += ' AND status = ?'
+                    params.append(status)
+                else:
+                    base_sql += ' AND status = 1'  # 保持默认行为不变
+                    
+                base_sql += ' order by ct desc'
+                
+                logger.info(f"执行SQL: {base_sql}, 参数: {tuple(params)}")
+                cursor = await conn.execute(base_sql, params)
+                
                 results = await cursor.fetchall()
                 return [dict(row) for row in results]
             except Exception as e:
@@ -413,7 +420,7 @@ class GoodsInfoStore(SqliteStore):
 
                 # 添加日期筛选条件
                 if date:
-                    sql += " AND DATE(ct) = ?"
+                    sql += " AND DATE(ut) = ?"
                     params.append(date)
 
                 # 添加用户ID筛选条件

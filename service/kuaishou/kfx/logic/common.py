@@ -80,3 +80,29 @@ async def common_request(data: dict, headers: dict, url: str) -> tuple[dict, boo
         return {}, False
 
     return response.json(), True
+
+async def common_get(headers: dict, url: str) -> tuple[dict, bool]:
+    """
+    请求 kuaishou
+    :param url:
+    :param data: 请求参数
+    :param headers: 请求头
+    :return: 返回数据和是否成功
+    """
+    try:
+        headers.update(COMMON_HEADERS)
+        logger.info(
+            f'url: {url}, request {url}, b headers={headers}')
+        response = await requests.get(url, headers)
+        logger.info(
+            f'url: {url}, response, code: {response.status_code}, body: {response.text}')
+
+        if response.status_code != 200 or response.text == '':
+            logger.error(
+                f'url: {url}, request error, code: {response.status_code}, body: {response.text}')
+            return {}, False
+    except Exception as e:
+        logger.exception(f'url: {url},  request error', e)
+        return {}, False
+
+    return response.json(), True
