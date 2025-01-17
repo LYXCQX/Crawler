@@ -251,7 +251,7 @@ class GoodsInfoStore(SqliteStore):
                 else:
                     base_sql += ' AND status = 1'  # 保持默认行为不变
                     
-                base_sql += ' order by ct desc'
+                base_sql += ' order by ut desc'
                 
                 logger.info(f"执行SQL: {base_sql}, 参数: {tuple(params)}")
                 cursor = await conn.execute(base_sql, params)

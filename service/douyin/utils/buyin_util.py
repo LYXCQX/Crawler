@@ -10,6 +10,7 @@ from pathlib import Path
 
 from Crawler.service.douyin.logic.Enum.goods_emnu import get_cate_by_id
 from Crawler.service.douyin.logic.entity.goods_info_req import env_filter_mapping
+from Crawler.service.kuaishou.kfx.logic.Enum.goods_emnu import QueryType
 from Crawler.service.kuaishou.kfx.logic.entity.goods_req import GoodsInfoHomeReq
 from social_auto_upload.conf import LOCAL_CHROME_PATH
 # 获取当前文件所在目录的父目录（项目根目录）
@@ -47,6 +48,7 @@ async def get_goods(user_id, playwright, req: GoodsInfoHomeReq, page, browser):
                     response_received.set()  # 设置事件标志
             except Exception as e:
                 logging.exception("响应解析失败", e)
+
     try:
         if not page:
             # 启动浏览器时添加更多配置
@@ -100,18 +102,92 @@ async def get_goods(user_id, playwright, req: GoodsInfoHomeReq, page, browser):
         page.remove_listener("response", handle_response)
 
 
+# 请求抖音选品热门榜单
+async def leaderboard(user_id, playwright, req: GoodsInfoHomeReq, page, browser):
+    response_data = None  # 添加变量存储响应数据
+    response_received = asyncio.Event()  # 添加事件标志
 
-async def add_chat(page, title):
+    # 定义请求拦截处理函数
+    async def handle_response(response):
+        nonlocal response_data  # 使用nonlocal访问外部变量
+        if "pc/leaderboard/center/pmt" in response.url:
+            try:
+                if 'video' in response.url:
+                    # 获取请求信息
+                    response_data = await response.json()
+                    response_received.set()  # 设置事件标志
+            except Exception as e:
+                logging.exception("响应解析失败", e)
+
     try:
-        # 首先获取定位器
-        xpc_class = page.get_by_text(title).locator("..").locator("..").get_by_text('加选品车')
+        # 启动浏览器时添加更多配置
+        browser = await playwright.chromium.launch(
+            headless=False,
+            executable_path=LOCAL_CHROME_PATH,  # 请替换为实际的Chrome路径
+            args=['--start-maximized']
+        )
+
+        # 使用保存的登录状态
+        context = await browser.new_context(
+            storage_state=get_account_file(user_id),
+            no_viewport=True
+        )
+
+        # 设置初始化脚本
+        context = await set_init_script(context)
+        page = await context.new_page()
+
+        # 访问目标页面
+        await page.goto("https://buyin.jinritemai.com/dashboard/merch-picking-hall/rank")
+        # 等待元素出现后再点击
+        await page.wait_for_selector(f'div[role="tab"]:has-text("{req.order_type}")')
+        await page.click(f'div[role="tab"]:has-text("{req.order_type}")')
+        if req.rate_start:
+            await page.click('span:has-text("佣金率")')
+            await page.click(f'span:has-text("{req.rate_start}")')
+        if req.request_type:
+            # 先检查元素是否存在
+            request_type_element = await page.query_selector(f'span:has-text("{req.request_type}")')
+            if request_type_element:
+                await request_type_element.click()
+        if req.item_tag_code:
+            page.on("response", handle_response)
+            await page.click(f'span:has-text("{req.item_tag_code}")')
+        await context.storage_state(path=get_account_file(user_id))
+        # 等待响应数据
+        try:
+            await asyncio.wait_for(response_received.wait(), timeout=30)  # 设置10秒超时
+        except asyncio.TimeoutError:
+            logging.error("获取响应数据超时")
+            return False, None, page, browser
+
+        return True, response_data, page, browser
+    except Exception:
+        await browser.close()
+        browser = None
+        page = None
+        return False, response_data, page, browser
+    finally:
+        if page:
+            page.remove_listener("response", handle_response)
+
+
+async def add_chat(page, title, query_type):
+    try:
+        tr_with_title = None
+        if query_type != QueryType.KEYWORD_COLLECTION.type:
+            # 首先找到包含title的tr元素，然后在其中查找"加选品车"按钮
+            tr_with_title = page.locator(f'tr:has-text("{title}")')
+        else:
+            tr_with_title = page.get_by_text(title).locator("..").locator("..")
+        xpc_class = tr_with_title.get_by_text('加选品车')
         # 尝试点击
         await xpc_class.click()
-        
+
         # 等待文本变化，检查是否成功添加
         try:
             # 检查是否变为"已加选品车"
-            success_text = page.get_by_text(title).locator("..").locator("..").get_by_text('已加选品车')
+            success_text = tr_with_title.get_by_text('已加选品车')
             await success_text.wait_for(timeout=5000)  # 等待5秒
             return True
         except Exception:
@@ -119,6 +195,7 @@ async def add_chat(page, title):
             try:
                 fail_text = page.get_by_text("添加失败")
                 await fail_text.wait_for(timeout=1000)  # 等待1秒
+                await page.get_by_text("我知道了").click()
                 return False
             except Exception:
                 # 如果既没有成功也没有失败的提示，返回False

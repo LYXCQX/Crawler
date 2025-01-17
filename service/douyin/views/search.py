@@ -48,7 +48,7 @@ def get_filter_params(keyword):
 # 添加一个变量来记录上次调用时间
 _last_search_time = 0
 
-async def search(keyword: str, offset: int = 0, limit: int = 10)->reply:
+async def search(keyword: str, offset: int = 0, limit: int = 10,search_id = None)->reply:
     """
     获取视频搜索，每次调用需间隔10秒
     """
@@ -65,12 +65,14 @@ async def search(keyword: str, offset: int = 0, limit: int = 10)->reply:
     random.shuffle(_accounts)
     
     search_params = get_filter_params(keyword)
+    if search_id:
+        search_params['search_id'] = search_id
     account = _accounts[0]
     if account.get('expired', 0) == 1:
         return reply(ErrorCode.NO_ACCOUNT, '请先添加账号')
     
     account_id = account.get('id', '')
-    res, succ = await request_search(
+    ret, succ = await request_search(
         account.get('cookie', ''), 
         offset, 
         limit,
@@ -80,8 +82,20 @@ async def search(keyword: str, offset: int = 0, limit: int = 10)->reply:
     # 更新最后调用时间
     _last_search_time = time.time()
     
-    if res == {} or not succ:
-        logger.error(f'search failed, account: {account_id}, keyword: {keyword}, offset: {offset}, limit: {limit}, res: {res}')
+    if ret == {} or not succ:
+        logger.error(f'search failed, account: {account_id}, keyword: {keyword}, offset: {offset}, limit: {limit}, res: {ret}')
         return reply(ErrorCode.SEARCH_FAILED, '搜索失败')    
-    logger.info(f'search success, account: {account_id}, keyword: {keyword}, offset: {offset}, limit: {limit}, res: {res}')
+    # logger.info(f'search success, account: {account_id}, keyword: {keyword}, offset: {offset}, limit: {limit}, res: {ret}')
+    res = {}
+    res['list'] =ret.get('data', {})
+    res['cursor'] = ret.get('cursor', None)
+    extrar = ret.get('extra', None)
+    search_id = None
+    if extrar:
+        search_id = extrar.get('logid', None)
+    if not search_id:
+        log_pb = ret.get('log_pb', None)
+        if log_pb:
+            search_id = extrar.get('impr_id', None)
+    res['search_id'] = search_id
     return reply(ErrorCode.OK, '成功', res)

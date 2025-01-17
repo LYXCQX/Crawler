@@ -38,6 +38,8 @@ class CommonAccount(SqliteStore):
                     creator_id VARCHAR(50) DEFAULT NULL,
                     shop_user_id VARCHAR(50) DEFAULT NULL,
                     pub_count INTEGER DEFAULT 100,
+                    create_video_count INTEGER DEFAULT 5,
+                    publish_interval INTEGER DEFAULT 7200,
                     keywords text DEFAULT '玩具,女孩玩具,男孩玩具,玩具枪,学习玩具,儿童车,布娃娃,益智,水枪,乐高,毛绒玩具,公仔,玩具车,魔方,医生玩具,积木,发条玩具,积木桌',
                     ct INTEGER NOT NULL,
                     ut INTEGER NOT NULL

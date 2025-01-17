@@ -151,7 +151,7 @@ class QueryType(Enum):
         for theme in cls:
             if theme.type == type:
                 return theme
-        return None
+        return type
 
     @classmethod
     def get_by_sub_title(cls, sub_title):

@@ -13,11 +13,11 @@ COMMON_PARAMS = {
     'channel': 'channel_pc_web',
     'update_version_code': '170400',
     'pc_client_type': '1', # Windows
-    'version_code': '190500',
-    'version_name': '19.5.0',
+    'version_code': '190600',
+    'version_name': '19.6.0',
     'cookie_enabled': 'true',
-    'screen_width': '2560', # from cookie dy_swidth
-    'screen_height': '1440', # from cookie dy_sheight
+    'screen_width': '1920', # from cookie dy_swidth
+    'screen_height': '1080', # from cookie dy_sheight
     'browser_language': 'zh-CN',
     'browser_platform': 'Win32',
     'browser_name': 'Chrome',
@@ -120,7 +120,10 @@ async def common_request(uri: str, params: dict, headers: dict) -> tuple[dict, b
     :param headers: 请求头
     :return: 返回数据和是否成功
     """
-    url = f'{HOST}{uri}'
+    if uri.startswith('http'):
+        url = uri
+    else:
+        url = f'{HOST}{uri}'
     params.update(COMMON_PARAMS)
     headers.update(COMMON_HEADERS)
 
@@ -132,11 +135,11 @@ async def common_request(uri: str, params: dict, headers: dict) -> tuple[dict, b
     a_bogus = DOUYIN_SIGN.call(call_name, query, headers["User-Agent"])
     params["a_bogus"] = a_bogus
 
-    logger.info(
-        f'url: {url}, request {url}, params={params}, headers={headers}')
+    # logger.info(
+    #     f'url: {url}, request {url}, params={params}, headers={headers}')
     response = await requests.get(url, params=params, headers=headers)
-    logger.info(
-        f'url: {url}, params: {params}, response, code: {response.status_code}, body: {response.text}')
+    # logger.info(
+    #     f'url: {url}, params: {params}, response, code: {response.status_code}, body: {response.text}')
 
     if response.status_code != 200 or response.text == '':
         logger.error(
