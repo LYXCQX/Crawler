@@ -3,8 +3,9 @@ import json
 import time
 
 from Crawler.data.driver import Proxies
+from Crawler.service.douyin.models import BASE_DIR
 
-proxyModel = Proxies("../Crawler/data/proxies/proxies.db")
+proxyModel = Proxies(BASE_DIR/"data/proxies/sql_lab/proxies.db")
 proxies = []
 
 class Response:

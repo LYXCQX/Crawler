@@ -4,12 +4,13 @@ import sys
 import json
 
 from dotenv import load_dotenv
-from playwright.async_api import async_playwright
+
 import asyncio
 from pathlib import Path
 
 from Crawler.service.douyin.logic.Enum.goods_emnu import get_cate_by_id
 from Crawler.service.douyin.logic.entity.goods_info_req import env_filter_mapping
+from Crawler.service.douyin.utils.trend_insight_util import TrendInsightCrawler
 from Crawler.service.kuaishou.kfx.logic.Enum.goods_emnu import QueryType
 from Crawler.service.kuaishou.kfx.logic.entity.goods_req import GoodsInfoHomeReq
 from social_auto_upload.conf import LOCAL_CHROME_PATH
@@ -87,7 +88,7 @@ async def get_goods(user_id, playwright, req: GoodsInfoHomeReq, page, browser):
             await context.storage_state(path=get_account_file(user_id))
         page.on("response", handle_response)
         print('点击搜索')
-        await page.click('button:has-text("搜索")')
+        await page.click('span:has-text("搜索")')
         print('点击搜索--end')
 
         # 等待响应数据
@@ -245,6 +246,25 @@ async def process_category(category, page, env_key, level=0):
                 await page.click(son_node_class % category['classify_name'], force=True)
 
 
+class BuyinUtil:
+    def crawl_trend_insight(self, query: str = "短剧"):
+        """
+        爬取巨量算数榜单数据
+        
+        Args:
+            query: 搜索关键词
+        """
+        crawler = TrendInsightCrawler()
+        video_data = asyncio.run(crawler.crawl_video_list(query))
+        crawler.save_to_transport_job(video_data)
+
+
 if __name__ == "__main__":
-    with async_playwright() as playwright:
-        query_success, response_data = asyncio.run(get_goods('account_id', playwright))
+    # with async_playwright() as playwright:
+    #     query_success, response_data = asyncio.run(get_goods('account_id', playwright))
+
+    # 添加测试调用 crawl_trend_insight
+    buyin_util = BuyinUtil()
+    print("开始爬取巨量算数榜单数据...")
+    buyin_util.crawl_trend_insight("短剧")
+    print("爬取完成")

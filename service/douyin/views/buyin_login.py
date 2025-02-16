@@ -3,16 +3,18 @@ import asyncio
 from pathlib import Path
 import os
 
+from Crawler.service.douyin.models import BASE_DIR
+
 
 def get_account_file(user_id: str) -> str:
     """获取账号存储文件路径"""
-    account_dir = "../data/douyin/cookies/buyin"
+    account_dir = BASE_DIR/"data/douyin/cookies/buyin"
     return str( f"{account_dir}/{user_id}.json")
 
 
 async def set_init_script(context):
     """设置初始化脚本"""
-    stealth_js_path = Path("../social_auto_upload/utils/stealth.min.js")
+    stealth_js_path = Path(BASE_DIR/"social_auto_upload/utils/stealth.min.js")
     await context.add_init_script(path=stealth_js_path)
     return context
 
@@ -67,7 +69,7 @@ async def login_with_qrcode():
                     await page.goto('https://buyin.jinritemai.com/dashboard/merch-picking-library?pre_universal_page_params_id=&universal_page_params_id=b8b0e7d7-4186-4569-addd-a60b35271ac7')
                     break
                 await asyncio.sleep(1)
-            await page.click('.btn-item-role-exchange__arrow')
+            await page.hover('.btn-item-role-exchange__arrow')
             # 等待百应ID元素出现并获取内容
             buyin_id_element = page.locator('text=百应ID').locator("..").locator('.header-role-menu__item-number').first
             buyin_id = await buyin_id_element.text_content()

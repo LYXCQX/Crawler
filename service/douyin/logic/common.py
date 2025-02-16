@@ -5,7 +5,10 @@ import urllib.parse
 import re
 import random
 
+from Crawler.service.douyin.models import BASE_DIR
+
 HOST = 'https://www.douyin.com'
+XIGUA_HOST = 'https://www.ixigua.com'
 
 COMMON_PARAMS = {
     'device_platform': 'webapp',
@@ -57,7 +60,20 @@ COMMON_HEADERS ={
     "dnt": "1",
 }
 
-DOUYIN_SIGN = execjs.compile(open('../Crawler/lib/js/douyin.js', encoding='utf-8').read())
+
+XIGUA_COMMON_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "sec-fetch-site": "same-origin",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "sec-ch-ua-platform": "Windows",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+    "accept-language": "zh-CN,zh;q=0.9,en-US;q=0.8,en-GB;q=0.7,en;q=0.6",
+    "accept": "application/json, text/plain, */*",
+}
+
+DOUYIN_SIGN = execjs.compile(open(BASE_DIR/'Crawler/lib/js/douyin.js', encoding='utf-8').read())
 
 async def get_webid(headers: dict):
     url = 'https://www.douyin.com/?recommend=1'
@@ -124,10 +140,15 @@ async def common_request(uri: str, params: dict, headers: dict) -> tuple[dict, b
         url = uri
     else:
         url = f'{HOST}{uri}'
-    params.update(COMMON_PARAMS)
-    headers.update(COMMON_HEADERS)
+    if url.startswith(XIGUA_HOST):
+        headers.update(XIGUA_COMMON_HEADERS)
+        params['msToken'] = get_ms_token()
+    else:
+        params.update(COMMON_PARAMS)
+        headers.update(COMMON_HEADERS)
+        params = await deal_params(params, headers)
 
-    params = await deal_params(params, headers)
+
     query = '&'.join([f'{k}={urllib.parse.quote(str(v))}' for k, v in params.items()])
     call_name = 'sign_datail'
     if 'reply' in uri:
